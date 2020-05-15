@@ -1,0 +1,12 @@
+## Python
+*.pyc
+__pycache__/
+
+## Mac
+.DS_Store
+
+## Google Drive
+Icon?
+
+## Misc
+inprogress_*
