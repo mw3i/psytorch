@@ -1,7 +1,9 @@
 '''
 based on Krushke (1992)
-    ^ doesn't implement any of the important things, like a psychologically plausible response rule, or the humble teachers principle
-based on tutorial from pytorch website
+    ^ doesn't implement any of the important things, like a psychologically plausible response rule
+
+Note: This really isn't meant to be used for psychological modeling; it's more of a example of how something like ALCOVE could be implemented in pytorch
+
 '''
 import numpy as np 
 
@@ -46,15 +48,15 @@ if __name__ == '__main__':
     exemplars = inputs
 
     targets = torch.tensor([
-        [0,1],
-        [0,1],
-        [0,1],
-        [0,1],
         [1,0],
         [1,0],
         [1,0],
         [1,0],
-    ])
+        [0,1],
+        [0,1],
+        [0,1],
+        [0,1],
+    ]) # <-- i think these are normally supposed to be -1,1 in the original ALCOVE paper, but 0,1 seems to work fine ¯\_(ツ)_/¯
     labels = torch.argmax(targets,1).type(torch.long)
 
 
@@ -70,8 +72,12 @@ if __name__ == '__main__':
 
     net = ALCOVE(**hps)
 
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(), lr=.4, momentum=0.9)
+    # criterionCrossEnt = nn.CrossEntropyLoss()
+    def criterionHumbleTeachers(output, targets):
+        humbleTargets = (output * targets).clamp(1) * targets
+        return torch.sum((output - targets) ** 2)
+
+    optimizer = optim.SGD(net.parameters(), lr=.04, momentum=0.9) # <-- unlike the original ALCOVE paper, this also assumes the same lr for attention learning and association learning (this could be fixed by manually updating weights, but that sort of ruins the point of using pytrch in the first place)
 
 
     ## Train
@@ -89,7 +95,8 @@ if __name__ == '__main__':
             outputs = net.forward(inputs, exemplars, hps['r'], hps['c'])
 
             # print(labels[p])
-            loss = criterion(outputs, labels)
+            # loss = criterionCrossEnt(outputs, labels) # <-- softmax cross entropy (like a normal MLP)
+            loss = criterionHumbleTeachers(outputs, targets) # <-- humble teacher SSE cost function from Krushke 1992 (at least i think)
             loss.backward()
             optimizer.step()
 

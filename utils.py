@@ -1,4 +1,5 @@
 import torch
+import numpy as np 
 
 def load_shj_stim():
 
@@ -139,3 +140,24 @@ def load_shj_stim():
             [.0, .0, .0, .0, .0, .0, .0],
         ]],
     ], dtype = torch.float)
+
+
+def load_mnist():
+    import gzip, struct, array
+
+    def parse_labels(filename):
+        with gzip.open(filename, 'rb') as fh:
+            magic, num_data = struct.unpack(">II", fh.read(8))
+            return np.array(array.array("B", fh.read()), dtype=np.uint8)
+
+    def parse_images(filename):
+        with gzip.open(filename, 'rb') as fh:
+            magic, num_data, rows, cols = struct.unpack(">IIII", fh.read(16))
+            return np.array(array.array("B", fh.read()), dtype=np.uint8).reshape(num_data, rows, cols)
+
+    train_images = torch.tensor(parse_images('_/mnist/train-images-idx3-ubyte.gz'), dtype = torch.float)
+    train_labels = torch.tensor(parse_labels('_/mnist/train-labels-idx1-ubyte.gz'), dtype = torch.float)
+    test_images  = torch.tensor(parse_images('_/mnist/t10k-images-idx3-ubyte.gz'), dtype = torch.float)
+    test_labels  = torch.tensor(parse_labels('_/mnist/t10k-labels-idx1-ubyte.gz'), dtype = torch.float)
+
+    return train_images, train_labels, test_images, test_labels
