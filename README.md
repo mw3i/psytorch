@@ -22,9 +22,8 @@ Some cognitive psychology models written with pytorch
 - **variational autoencoder** (`vae.py`)
 - **alcove** ([Krushke 1992](https://psych.indiana.edu/documents/kruschke-1992.pdf); `alcove.py`)
   - ^ missing a lot of key functionality of ALCOVE as a psychological model (like luce-choice, response mapping, humble-teacher principle, etc)
-- Coming Soon:
-  - DIVA ([Kurtz 2007](https://link.springer.com/content/pdf/10.3758/BF03196806.pdf))
-  - variational DIVA
+- DIVA ([Kurtz 2007](https://link.springer.com/content/pdf/10.3758/BF03196806.pdf))
+- variational DIVA
 
 ## Misc
 
