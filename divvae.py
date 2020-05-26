@@ -20,10 +20,10 @@ class DIVVAE(nn.Module):
         self.latent_m = nn.Linear(hps['num_h1_nodes'], hps['num_latent_nodes'])
         self.latent_v = nn.Linear(hps['num_h1_nodes'], hps['num_latent_nodes'])
         self.hidden3 = nn.Linear(hps['num_latent_nodes'],hps['num_h3_nodes'])
-        self.output = {
-            channel: nn.Linear(hps['num_h3_nodes'], hps['num_features'])
+        self.output = nn.ModuleDict({
+            str(channel): nn.Linear(hps['num_h3_nodes'], hps['num_features'])
             for channel in hps['classes']
-        }
+        })
 
     def encode(self, x):
         x = F.relu(self.hidden1(x))
@@ -54,7 +54,7 @@ if __name__ == '__main__':
     stim = utils.load_shj_stim()
     inputs = stim.reshape(stim.shape[0],-1)
     labels = np.array([0,0,0,0,1,1,1,1])
-    categories = np.unique(labels).tolist()
+    categories = np.unique(labels).astype(int).astype(str).tolist()
    
 
     ## Load MNIST
@@ -62,7 +62,7 @@ if __name__ == '__main__':
     # inputs = train_stim / 255
     # inputs = inputs.reshape(inputs.shape[0], -1)
     # labels = train_labels
-    # categories = torch.unique(labels).numpy().tolist()
+    # categories = torch.unique(labels).numpy().astype(int).astype(str).tolist()
 
     ## Initialize Model Instance
     hps = { # <-- hyperparameters
@@ -75,6 +75,7 @@ if __name__ == '__main__':
 
     net = DIVVAE(**hps)
 
+    # Define Loss Function
     def criterion(targets, sample, z_m, z_v, beta = 1):
         recon_loss = F.binary_cross_entropy(sample, targets, reduction='sum')
         # recon_loss = torch.sum(-targets * torch.log(sample) - (1 - targets) * torch.log(1 - sample)) # <-- binary cross entropy by hand
@@ -82,12 +83,12 @@ if __name__ == '__main__':
         kl_div_loss = 0.5 * torch.sum(torch.exp(z_v) + z_m**2 - 1.0 - z_v)
         return ((beta * kl_div_loss) + recon_loss) / targets.shape[0]
 
-    optimizer = optim.SGD(net.parameters(), lr=.5, momentum = .001)
+    optimizer = optim.SGD(net.parameters(), lr=.005, momentum = .001)
 
 
     ## Train
     presentation_order = np.arange(len(set(hps['classes'])))
-    epochs = 10000
+    epochs = 1000
     batch_size = 4
     for epoch in range(epochs):  # loop over the dataset multiple times
 
@@ -118,13 +119,12 @@ if __name__ == '__main__':
     fig, ax = plt.subplots(2 + len(categories),len(categories))
 
     for i in range(len(categories)):
-
         ax[0,i].imshow(inputs[labels == i][0].reshape(stim.shape[-2],stim.shape[-1]), cmap = 'binary')
-        ax[1,i].imshow(net.forward(inputs[i:i+1], labels[i].item())[0].detach().reshape(stim.shape[-2],stim.shape[-1]), cmap = 'binary')
+        ax[1,i].imshow(net.forward(inputs[labels == i][0], hps['classes'][i])[0].detach().reshape(stim.shape[-2],stim.shape[-1]), cmap = 'binary')
         
-        for c in categories:
+        for _, c in enumerate(categories):
             noise = torch.randn([1,hps['num_latent_nodes']])
-            ax[int(2+c),i].imshow(
+            ax[int(2+_),i].imshow(
                 net.decode(noise, c)[0].detach().reshape(stim.shape[-2],stim.shape[-1]),
                 cmap = 'binary',
             )
@@ -132,7 +132,7 @@ if __name__ == '__main__':
 
     ax[0,0].set_ylabel('orig', fontsize = 4, fontweight = 'bold')
     ax[1,0].set_ylabel('recon', fontsize = 4, fontweight = 'bold')
-    for c in categories: ax[int(2+c), 0].set_ylabel(str(int(c)), fontsize = 6, fontweight = 'bold')
+    for _, c in enumerate(categories): ax[int(2+_), 0].set_ylabel(str(int(c)), fontsize = 6, fontweight = 'bold')
 
     for a in ax.flatten(): [a.set_xticks([]), a.set_yticks([])]
     # plt.tight_layout()

@@ -1,5 +1,4 @@
 '''
-DIVergent Autoencoder (Kurtz 2007)
 based on tutorial from pytorch website
 '''
 import numpy as np 
@@ -21,10 +20,10 @@ class DIVA(nn.Module):
     def __init__(self, **hps):
         super(DIVA, self).__init__()
         self.hidden1 = nn.Linear(hps['num_features'], hps['num_hidden_nodes'])
-        self.output = {
+        self.output = nn.ModuleDict({
             channel: nn.Linear(hps['num_hidden_nodes'], hps['num_features'])
             for channel in hps['classes']
-        }
+        })
 
     def forward(self, x, channel):
         x = torch.sigmoid(self.hidden1(x))
@@ -48,13 +47,14 @@ if __name__ == '__main__':
     targets = inputs / 2 + .5
 
     labels = [0,0,0,0,1,1,1,1]
-
+    # labels = [str(l) for l in labels]
 
     ## Initialize Model Instance
+    class_map = {_: str(c) for _, c in enumerate(list(set(labels)))}
     hps = { # <-- hyperparameters
         'num_features': inputs.shape[1],
         'num_hidden_nodes': 3,
-        'classes': [0,1],
+        'classes': list(class_map.values()),
     }
 
     net = DIVA(**hps)
@@ -62,7 +62,8 @@ if __name__ == '__main__':
     # criterion = nn.MSELoss()
     def criterion(outputs, targets):
         return torch.sum((outputs - targets) ** 2)
-    optimizer = optim.SGD(net.parameters(), lr=1.1, momentum=0.9)
+    
+    optimizer = optim.SGD(net.parameters(), lr=1.1, momentum=0)
 
 
     ## Train
@@ -73,17 +74,27 @@ if __name__ == '__main__':
         np.random.shuffle(presentation_order)
         for p in presentation_order:
             # zero the parameter gradients
+            # optimizers[labels[p]].zero_grad()
             optimizer.zero_grad()
 
             # forward + backward + optimize
-            outputs = net.forward(inputs[p:p+1], labels[p])
-
-            # print(labels[p])
-            # exit()
-            loss = criterion(outputs[p:p+1], targets[p:p+1])
+            outputs = net.forward(inputs[p:p+1], class_map[labels[p]])
+            loss = criterion(outputs, targets[p:p+1])
+            # print(labels[p], '|', loss.item())
             loss.backward()
 
             optimizer.step()
+
+
+            print('Item Label:', labels[p], '\n')
+            print('channel 0 gradients:')
+            print(net.output[class_map[0]].weight)
+            print()
+            print('channel 1 gradients:')
+            print(net.output[class_map[1]].weight)
+            print()
+            print('\n------\n')
+
 
 
     ## Plot
@@ -92,9 +103,11 @@ if __name__ == '__main__':
     fig, ax = plt.subplots(1,3)
 
     ax[0].imshow(inputs); ax[0].set_title('inputs')
-    ax[1].imshow(net.forward(inputs,0).detach()); ax[1].set_title('chan0\noutputs')
-    ax[2].imshow(net.forward(inputs,1).detach()); ax[2].set_title('chan1\noutputs')
+    ax[1].imshow(net.forward(inputs,hps['classes'][0]).detach()); ax[1].set_title('chan0\noutputs')
+    ax[2].imshow(net.forward(inputs,hps['classes'][1]).detach()); ax[2].set_title('chan1\noutputs')
 
     for a in ax.flatten(): [a.set_xticks([]), a.set_yticks([])]
+    ax[0].set_yticks(range(8)); ax[0].set_yticklabels(labels)
+
     plt.tight_layout()
     plt.savefig('_/test.png')
